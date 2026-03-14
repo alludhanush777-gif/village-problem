@@ -4,11 +4,11 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import { Home, Users, Map, BarChart3, Settings, Shield, User } from 'lucide-react';
+import { Home, Users, Map, BarChart3, Settings, Shield, User, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const { t } = useSettings();
   const router = useRouter();
   const pathname = usePathname();

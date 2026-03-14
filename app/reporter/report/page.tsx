@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { GramSahayak } from '@/components/gram-sahayak';
 import {
   Camera,
   MapPin,
@@ -27,6 +28,7 @@ import {
   Send,
   X,
   Map,
+  Bot
 } from 'lucide-react';
 
 const deviceTypes = [
@@ -47,9 +49,10 @@ const urgencyLevels: { value: FaultUrgency; labelKey: string; color: string }[] 
 export default function ReportPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { t } = useSettings();
+  const { t, language } = useSettings();
   const { addFault } = useFaultStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
 
   // Manual location selection
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
@@ -67,6 +70,29 @@ export default function ReportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  const handleAiReportComplete = (summary: any) => {
+    const summaryText = language === 'te' 
+      ? `గ్రామ్-సహాయక్ నుండి సారాంశం:\n\nసమస్య: ${summary.issue}\nరోగనిర్ధారణ: ${summary.technicalObservation}\nతీవ్రత: ${summary.severity}`
+      : language === 'hi'
+        ? `ग्राम-सहायक से सारांश:\n\nसमस्या: ${summary.issue}\nनिदान: ${summary.technicalObservation}\nगंभीरता: ${summary.severity}`
+        : `Summary from Gram-Sahayak:\n\nIssue: ${summary.issue}\nDiagnosis: ${summary.technicalObservation}\nSeverity: ${summary.severity}`;
+
+    setFormData(prev => ({
+      ...prev,
+      description: summaryText,
+      urgency: summary.severity.toLowerCase() === 'high' ? 'high' : 'medium'
+    }));
+
+    // Try to match device type
+    const deviceMatch = deviceTypes.find(d => 
+      summary.machine?.toLowerCase().includes(t(d.labelKey).toLowerCase()) ||
+      summary.issue?.toLowerCase().includes(t(d.labelKey).toLowerCase())
+    );
+    if (deviceMatch) {
+      setFormData(prev => ({ ...prev, deviceType: deviceMatch.value }));
+    }
+  };
 
   // Get unique mandals for selected district
   const mandalsInDistrict = Array.from(
@@ -197,8 +223,20 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="p-4 space-y-4 pb-8">
-      <h2 className="text-lg font-semibold">{t('reportNewFault')}</h2>
+    <div className="p-4 space-y-4 pb-8 relative">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">{t('reportNewFault')}</h2>
+        <Button 
+          type="button" 
+          variant="outline" 
+          size="sm" 
+          className="gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all shadow-sm"
+          onClick={() => setShowAiAssistant(true)}
+        >
+          <Bot className="h-4 w-4" />
+          Gram-Sahayak AI
+        </Button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Image Upload */}
@@ -357,7 +395,7 @@ export default function ReportPage() {
           <Textarea
             id="description"
             placeholder="Describe the fault in detail..."
-            rows={3}
+            rows={4}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             required
@@ -448,6 +486,16 @@ export default function ReportPage() {
           )}
         </Button>
       </form>
+
+      {/* AI Assistant Modal */}
+      {showAiAssistant && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-300">
+          <GramSahayak 
+            onReportComplete={handleAiReportComplete}
+            onClose={() => setShowAiAssistant(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
